@@ -8,6 +8,8 @@
 # User-specific files
 .Ruserdata
 stationracks.csv
+EdgebundleAttempts.R
+troubleshooting.R
 /data/
 
 # Example code in package build process

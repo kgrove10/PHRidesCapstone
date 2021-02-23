@@ -8,6 +8,11 @@ library(janitor)
 library(shinythemes)
 library(shinyjs) 
 library(bslib)
+library(sp)
+library(maptools)
+library(shinyWidgets)
+library(leaflet.extras)
+
 
 alldatalist <- import_list(dir("./data", pattern = ".csv", full.names = TRUE))
 
@@ -21,10 +26,15 @@ station_bikes <- import("./data/created/stationracks.csv") %>%
 
 alldata <- data.table::rbindlist(alldatalist) %>%
   clean_names() %>%
+  filter(start_latitude != "" &
+           start_longitude != "" &
+           end_latitude != "" &
+           end_longitude != "") %>%
   mutate(start_latitude = as.numeric(start_latitude),
          start_longitude = as.numeric(start_longitude),
          end_latitude = as.numeric(end_latitude),
          end_longitude = as.numeric(end_longitude))
+
 
 #list of bikes for reference
 #bikes_unique <- alldata %>%
@@ -62,7 +72,112 @@ alldata <- data.table::rbindlist(alldatalist) %>%
 
 outofhub <- import("./data/created/outofhub.csv") %>%
   select(-V1)
-  
+
+destroy <- outofhub %>%
+  filter(start_hub != "") %>%
+  filter(is.na(end_longitude) == FALSE)
+
+destroycoord <- destroy %>%
+  rename(latitude = end_latitude, longitude = end_longitude)
+
+repair <- outofhub %>%
+  filter(start_hub == "")
+
+repaircoord <- repair %>%
+  rename(latitude = start_latitude, longitude = start_longitude)
+
+# 
+# points_to_line <- function(data, long, lat, id_field = NULL, sort_field = NULL) {
+#   coordinates(data) <- c(long, lat)
+#   if (!is.null(sort_field)) {
+#     if (!is.null(id_field)) {
+#       data <- data[order(data[[id_field]], data[[sort_field]]), ]
+#     } else {
+#       data <- data[order(data[[sort_field]]), ]
+#     }
+#   }
+#   if (is.null(id_field)) {
+#     lines <- SpatialLines(list(Lines(list(Line(data)), "id")))
+#     return(lines)
+#   } else if (!is.null(id_field)) {  
+#     paths <- sp::split(data, data[[id_field]])
+#     sp_lines <- SpatialLines(list(Lines(list(Line(paths[[1]])), "line1")))
+#     for (p in 2:length(paths)) {
+#       id <- paste0("line", as.character(p))
+#       l <- SpatialLines(list(Lines(list(Line(paths[[p]])), id)))
+#       sp_lines <- spRbind(sp_lines, l)
+#     }
+#     return(sp_lines)
+#   }
+# }
+
+# repairlinestestlong <- repair %>%   
+#   filter(start_latitude != "" &
+#            start_longitude != "" & 
+#            end_latitude != "" &
+#            end_longitude != "") %>%
+#   mutate(month = lubridate::month(start_time, label = TRUE)) %>%
+#   filter(month == "Mar" &
+#            distance_miles > 1) %>%
+#   select(user_id, route_id, bike_id, 
+#          start_hub, start_latitude, start_longitude, start_time, 
+#          end_hub, end_latitude, end_longitude, end_time) %>%
+#   gather(key = group, value = location, -ends_with("id"), 
+#          -ends_with("time"), -ends_with("hub")) %>%
+#   separate(group, c("group","where")) %>%
+#   spread(where, location)
+# 
+# repairlinestestmed <- repair %>%   
+#   filter(start_latitude != "" &
+#            start_longitude != "" & 
+#            end_latitude != "" &
+#            end_longitude != "") %>%
+#   mutate(month = lubridate::month(start_time, label = TRUE)) %>%
+#   filter(month == "Mar" &
+#            distance_miles <= 1 &
+#            distance_miles >= .5) %>%
+#   select(user_id, route_id, bike_id, 
+#          start_hub, start_latitude, start_longitude, start_time, 
+#          end_hub, end_latitude, end_longitude, end_time) %>%
+#   gather(key = group, value = location, -ends_with("id"), 
+#          -ends_with("time"), -ends_with("hub")) %>%
+#   separate(group, c("group","where")) %>%
+#   spread(where, location)
+# 
+# repairlinestestshort <- repair %>%   
+#   filter(start_latitude != "" &
+#            start_longitude != "" & 
+#            end_latitude != "" &
+#            end_longitude != "") %>%
+#   mutate(month = lubridate::month(start_time, label = TRUE)) %>%
+#   filter(month == "Mar" &
+#            distance_miles < .5) %>%
+#   select(user_id, route_id, bike_id, 
+#          start_hub, start_latitude, start_longitude, start_time, 
+#          end_hub, end_latitude, end_longitude, end_time) %>%
+#   gather(key = group, value = location, -ends_with("id"), 
+#          -ends_with("time"), -ends_with("hub")) %>%
+#   separate(group, c("group","where")) %>%
+#   spread(where, location)
+
+
+# rl1 <- points_to_line(repairlinestestlong, "longitude", "latitude", "route_id")
+# rl2 <- points_to_line(repairlinestestmed, "longitude", "latitude", "route_id")
+# rl3 <- points_to_line(repairlinestestshort, "longitude", "latitude", "route_id")
+
+
+# destroylines <- destroy %>%
+#   select(user_id, route_id, bike_id, 
+#          start_hub, start_latitude, start_longitude, start_time, 
+#          end_hub, end_latitude, end_longitude, end_time) %>%
+#   gather(key = group, value = location, -ends_with("id"), 
+#          -ends_with("time"), -ends_with("hub")) %>%
+#   separate(group, c("group","where")) %>%
+#   spread(where, location)
+# 
+# dl <- points_to_line(destroylines, "longitude", "latitude", "route_id")
+
+
 
 # inefficient double loop - implemented better single loop above
 # for(k in 1:length(bike_list)) {
@@ -98,7 +213,6 @@ stationlist <- distinct(stations, start_hub, .keep_all = TRUE) %>%
 
 stationdescriptions <- full_join(stationlist, station_bikes)
 
-
 noendstation <- alldata %>%
   filter(end_hub == "") %>%
   mutate(month = lubridate::month(start_time, label = TRUE)) %>%
@@ -112,11 +226,31 @@ icons <- awesomeIcons(
   library = 'fa',
 )
 
-#code to customize theme
+s_icon <- awesomeIcons(  
+  icon = 'fa-bicycle',
+  iconColor = "#FFFFFF",
+  markerColor = "black",
+  library = "fa"
+)
+
+n_icon <- awesomeIcons(
+  icon = 'fa-bicycle',
+  iconColor = "#000000",
+  markerColor = "lightgray",
+  library = "fa"
+)
+
+bikeIcon <- makeIcon(
+  iconUrl = "https://image.flaticon.com/icons/png/512/130/130066.png",
+  iconWidth = 25, iconHeight = 25,
+  iconAnchorX = 10, iconAnchorY = 10
+)
+
+# code to customize theme
 # material <- bs_theme(
-#   bg = "#202123",
-#   fg = "#B8BCC2",
-#   primary = "#EA80FC",
+#   bg = "#E9F4FF",
+#   fg = "#000000",
+#   primary = "#27598e",
 #   secondary = "#00DAC6",
 #   success = "#4F9B29",
 #   info = "#28B3ED",
@@ -153,10 +287,48 @@ ui<- fluidPage(navbarPage(title = "PeaceHealth Rides Visualizations",
                          )
                          )
                 ),
-                tabPanel("Bike Bounty Hunting"
+                # tabPanel("Bike Bounty Hunting",
+                #          sidebarLayout(fluid = TRUE,
+                #                        sidebarPanel(
+                #                          selectInput("triptype", label = "Trip Type",
+                #                                      choices = c("Short", "Medium", "Long")),
+                #                          div(style = "text-align:center", "Short < 0.5 mile, Long > 1 mile"),
+                #                          width = 2
+                #                        ),
+                #                        mainPanel(tags$style(type = "text/css", "#vis2 {height: calc(100vh - 80px) !important;}"),
+                #                                  leafletOutput(outputId = "vis2"),
+                #                                  width = 10)
+                #          )
+                # ),
+                tabPanel("Distributed System Repair",
+                         sidebarLayout(fluid = TRUE,
+                                       sidebarPanel(
+                                         selectInput("station", label = "Station",
+                                                     choices = str_sort(stationlist$start_hub)),
+                                         prettyRadioButtons("triptype", 
+                                                            label = "Type of Trip",
+                                                            choices = list("Return to Station" = 1, 
+                                                                           "Leave from Station" = 2), 
+                                                            selected = 1,
+                                                            status = "primary",
+                                                            shape = "round",
+                                                            fill = TRUE,
+                                                            animation = "jelly",
+                                                            plain = FALSE,
+                                                            thick = FALSE,
+                                                            bigger = TRUE
+                                                            ),
+                                         
+                                         div(style = "text-align:center", " "),
+                                         width = 3
+                                       ),
+                                       mainPanel(tags$style(type = "text/css", "#map2 {height: calc(100vh - 80px) !important;}"),
+                                                 leafletOutput(outputId = "map2"),
+                                                 width = 9
+                                       )
                          )
                 )
-  )
+  ))
 
 
 
@@ -183,6 +355,24 @@ server <- function(input, output, session) {
     }
   })
   
+  # filteredlinedata <- reactive({
+  #   if (input$triptype == "Short") {
+  #     rl3
+  #   } else if (input$triptype == "Medium") {
+  #     rl2
+  #   } else{
+  #     rl1
+  #   }
+  # })
+  
+  filteredData2 <- reactive({
+    if (input$triptype == "1") {
+      filter(repaircoord, end_hub == input$station)
+    } else if (input$triptype == "2") {
+      filter(destroycoord, start_hub == input$station)
+    }
+  })
+  
   output$map<- renderLeaflet({
     stationdescriptions %>%
       leaflet() %>%
@@ -197,6 +387,7 @@ server <- function(input, output, session) {
                         popup = ~paste0(start_hub, "</br>", "Number of Racks: ", as.character(racks)),
                         label = ~start_hub,
                         options = markerOptions(opacity = .85))
+  
     # output$map<- renderLeaflet({
     # noendstation %>%
     #     leaflet() %>%
@@ -216,6 +407,90 @@ server <- function(input, output, session) {
                        radius = 2,
                        clusterOptions = markerClusterOptions(spiderfyOnMaxZoom = FALSE))
   })
+
+  output$map2 <- renderLeaflet({
+    stationdescriptions %>%
+      leaflet() %>%
+      addTiles() %>%
+      fitBounds(~min(lon), 
+                ~min(lat),
+                ~max(lon), 
+                ~max(lat)) %>%
+      addAwesomeMarkers(data = filter(stationdescriptions, start_hub == "1600 Millrace Drive"),
+                        lng = ~lon,
+                        lat = ~lat,
+                        icon = s_icon,
+                        popup = ~paste0(start_hub, "</br>", "Number of Racks: ", as.character(racks)),
+                        label = ~start_hub,
+                        options = markerOptions(opacity = .85)) %>%
+      addAwesomeMarkers(data = filter(stationdescriptions, start_hub != "1600 Millrace Drive"),
+                        lng = ~lon,
+                        lat = ~lat,
+                        icon = n_icon,
+                        popup = ~paste0(start_hub, "</br>", "Number of Racks: ", as.character(racks)),
+                        label = ~start_hub,
+                        options = markerOptions(opacity = .85)) %>%
+      addHeatmap(data = filter(repaircoord, end_hub == "1600 Millrace Drive"),
+                 lng = ~longitude,
+                 lat = ~latitude,
+                 radius = 8)
+    })
+    
+ observe({
+    leafletProxy("map2", data = filteredData2()) %>%
+     clearHeatmap() %>%
+      addHeatmap(lng = ~longitude,
+                 lat = ~latitude,
+                 radius = 8) %>%
+     clearMarkers() %>%
+     addAwesomeMarkers(data = filter(stationdescriptions, start_hub != input$station),
+                       lng = ~lon,
+                       lat = ~lat,
+                       icon = n_icon,
+                       popup = ~paste0(start_hub, "</br>", "Number of Racks: ", as.character(racks)),
+                       label = ~start_hub,
+                       options = markerOptions(opacity = .85)) %>%
+     addAwesomeMarkers(data = filter(stationdescriptions, start_hub == input$station),
+                       lng = ~lon,
+                       lat = ~lat,
+                       icon = s_icon,
+                       popup = ~paste0(start_hub, "</br>", "Number of Racks: ", as.character(racks)),
+                       label = ~start_hub,
+                       options = markerOptions(opacity = .85))
+  })
+    
+# output$vis2 <- renderLeaflet({
+#   stationdescriptions %>%
+#     leaflet() %>%
+#     addTiles() %>%
+#     fitBounds(~min(lon), 
+#               ~min(lat),
+#               ~max(lon), 
+#               ~max(lat)) %>%
+#     addAwesomeMarkers(lng = ~lon,
+#                       lat = ~lat,
+#                       icon = icons,
+#                       popup = ~paste0(start_hub, "</br>", "Number of Racks: ", as.character(racks)),
+#                       label = ~start_hub,
+#                       options = markerOptions(opacity = .85)) %>%
+#     #addPolylines(data = repairlinestestlong, lng = ~longitude, lat = ~latitude, group = ~group)
+#     addPolylines(data = filteredlinedata(), opacity = 0.3, weight = 3, color = "black")
+  # output$map<- renderLeaflet({
+  # noendstation %>%
+  #     leaflet() %>%
+  #     addTiles() %>%
+  #     fitBounds(~min(end_longitude), 
+  #               ~min(end_latitude), 
+  #               ~max(end_longitude), 
+  #               ~max(end_latitude))
+# })
+# 
+#  
+# observeEvent(input$vis2_shape_click, {
+#   p <- input$vis2_shape_click
+#   print(p) 
+# })
+# 
 }
 
 shinyApp(ui = ui, server = server)
