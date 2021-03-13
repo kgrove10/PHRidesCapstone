@@ -10,7 +10,10 @@
 stationracks.csv
 EdgebundleAttempts.R
 troubleshooting.R
+heatmapwork.R
+Untitled.R
 /data/
+/ShinyData/
 
 # Example code in package build process
 *-Ex.R

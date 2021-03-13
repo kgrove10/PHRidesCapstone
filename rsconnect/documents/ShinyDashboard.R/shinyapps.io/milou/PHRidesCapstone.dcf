@@ -5,9 +5,10 @@ account: milou
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3549862
-bundleId: 4203783
+bundleId: 4328854
 url: https://milou.shinyapps.io/PHRidesCapstone/
-when: 1612927070.10055
-lastSyncTime: 1612927070.10056
+when: 1615432736.44318
+lastSyncTime: 1615432736.44319
 asMultiple: FALSE
 asStatic: FALSE
+ignoredFiles: .RData|DataPrep.R|EdgebundleAttempts.R|heatmapwork.R|LICENSE|profileOutput|README.md|troubleshooting.R|Untitled.R|data
