@@ -51,187 +51,363 @@ n_icon <- awesomeIcons(
 )
 
 # customize waiting spinner
-options(spinner.color = "#99b8d4", spinner.color.background = "#E9F4FF", spinner.size = 2)
+options(spinner.color = "#99b8d4", 
+        spinner.color.background = "#E9F4FF", 
+        spinner.size = 2)
 
 #shiny App:
-ui <- fluidPage(navbarPage(title = "PeaceHealth Rides Visualizations", 
-                          theme = bs_theme(bg = "#E9F4FF", fg = "#000000", primary = "#27598e", 
-                                           secondary = "#99b8d4", base_font = font_google("Signika"), 
-                                           `enable-gradients` = FALSE, `enable-shadows` = FALSE, bootswatch = "slate"),
-                          
-                          tabPanel("Out-of-Station Bikes",
-                                   sidebarLayout(fluid = TRUE,
-                                                 sidebarPanel(
-                                                   tags$head(
-                                                     tags$style(type="text/css", 
-                                                                "label.control-label, .selectize-control.single {display: table-cell; text-align: left; vertical-align: middle;} 
-                                                                label.control-label {padding-right: 10px; width: 50px; text-align: right;}
-                                                                .form-group {display: table-row;}
-                                                                .selectize-control.single div.item {padding-right: 15px; width: 160px;}")),
-                                                   div(style = "text-align:center", 
-                                                       "This map displays the distribution of out-of-station PeaceHealth Rides bikes.
-                                                       Each circle indicates the number of bikes in that area. Hover over the circle to see which area it encompasses, 
-                                                       or click to zoom in."),
-                                                   div(style = "text-align:center",
-                                                       "Single instances are represented by a single black dot.
-                                                        PeaceHealth Rides Stations are indicated with blue markers."),
-                                                   br(),
-                                                   div(style = "text-align:center",
-                                                        "Use the dropdown boxes below to filter for specific years, months, or days of the week."),
-                                                   br(),
-                                                     selectInput("year", label = "Year:",
-                                                               choices = c("All", "2018", "2019", "2020", "2021"),
-                                                               width = "500px"),
-                                                   selectInput("month",label = "Month:",
-                                                               choices = c("All", "Jan", "Feb", "Mar", "Apr",
-                                                                           "May", "Jun", "Jul", "Aug", "Sep",
-                                                                           "Oct", "Nov", "Dec")),
-                                                   selectInput("day",label = "Weekday:",
-                                                               choices = c("All", "Mon", "Tue", "Wed",
-                                                                           "Thu", "Fri", "Sat", "Sun")),
-                                                   br(),
-                                                   h6(style = "text-align:center", "Number of Out-of-Station Bikes:"),
-                                                   textOutput("summarystats1"),
-                                                   tags$style(type="text/css", "#summarystats1 {text-align:center;}"),
-                                                   br(),
-                                                   width = 3
-                                                 ),
-                                                 mainPanel(tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
-                                                           withSpinner(leafletOutput(outputId = "map"), type = 2),
-                                                           width = 9
-                                                 )
-                                   )
-                          ),
-                          tabPanel("System Repair & Destruction",
-                                   sidebarLayout(fluid = TRUE,
-                                                 sidebarPanel(
-                                                   div(style = "text-align:center;",
-                                                   "Selecting a station and direction below displays a heatmap of the end point of destructive trips originating from this station (\"Leave Station\"), or
-                                                   the starting points of repair trips ending at this station (\"Return to Station\")."),
-                                                   div(style = "text-align:center; font-size:9px; color:#d2dce6", "---"),
-                                                   div(style = "text-align:center; font-size:13px;",
-                                                       "Destructive trips are those where bikes are taken from a station but left out-of-station, 
-                                                   and repair trips are those in which an out-of-station bike is returned to a station."),
-                                                   br(),
-                                                   selectInput("station", label = "Station:",
-                                                               choices = str_sort(stationdescriptions$start_hub)),
-                                                   br(),
-                                                   prettyRadioButtons("triptype",
-                                                                      label = "Direction:",
-                                                                      choices = list( 
-                                                                                     "Leave Station" = 2,
-                                                                                     "Return to Station" = 1), 
-                                                                      selected = 2,
-                                                                      status = "primary",
-                                                                      shape = "round",
-                                                                      fill = TRUE,
-                                                                      animation = "jelly",
-                                                                      plain = FALSE,
-                                                                      thick = FALSE,
-                                                                      bigger = FALSE,
-                                                                      inline = TRUE
-                                                   ),
-                                                   br(),
-                                                   selectInput("year2", label = "Year:",
-                                                               choices = c("All", "2018", "2019", "2020", "2021"),
-                                                               selected = "All"),
-                                                   selectInput("month2",label = "Month:",
-                                                               choices = c("All", "Jan", "Feb", "Mar", "Apr",
-                                                                           "May", "Jun", "Jul", "Aug", "Sep",
-                                                                           "Oct", "Nov", "Dec"),
-                                                               selected = "All"),
-                                                   selectInput("day2",label = "Weekday:",
-                                                               choices = c("All", "Mon", "Tue", "Wed",
-                                                                           "Thu", "Fri", "Sat", "Sun"),
-                                                               selected = "All"),
-                                                   h6("Summary Statistics:", style = "text-align:center"),
-                                                   fluidRow(column(7,
-                                                                   div("Number of Trips:", style = 'text-align:right')
-                                                                   ), 
-                                                            column(5,
-                                                                   div(textOutput("summarystats2_1"), style = 'text-align:left'),
-                                                                   style = "padding:0px;")),
-                                                   fluidRow(column(7,
-                                                                   div("Average Trip Duration:", style = 'text-align:right')), 
-                                                            column(5,
-                                                                   div(textOutput("summarystats2_2"), style = 'text-align:left'),
-                                                                   style = "padding:0px;")),
-                                                   fluidRow(column(7,
-                                                                   div("Average Trip Distance:", style = 'text-align:right')), 
-                                                            column(5,
-                                                                   div(textOutput("summarystats2_3"), style = 'text-align:left'),
-                                                                   style = "padding:0px;")),
-                                                   div(style = "text-align:center", " "),
-                                                   width = 3
-                                                 ),
-                                                 mainPanel(tags$style(type = "text/css", "#map2 {height: calc(100vh - 80px) !important;}"),
-                                                           withSpinner(leafletOutput(outputId = "map2"), type = 2),
-                                                           width = 9
-                                                 )
-                                   )
-                          ),tabPanel("Bike Usage Statistics",
-                                     sidebarLayout(fluid = TRUE,
-                                                   sidebarPanel(
-                                                     div(style = "text-align:center",
-                                                         "These plots display the average ride start time, duration, and distance for the time period selected below."),
-                                                     br(),
-                                                     selectInput("year3", label = "Year:",
-                                                                 choices = c("All", "2018", "2019", "2020", "2021")),
-                                                     selectInput("month3",label = "Month:",
-                                                                 choices = c("All", "Jan", "Feb", "Mar", "Apr",
-                                                                             "May", "Jun", "Jul", "Aug", "Sep",
-                                                                             "Oct", "Nov", "Dec")),
-                                                     selectInput("day3",label = "Weekday:",
-                                                                 choices = c("All", "Mon", "Tue", "Wed",
-                                                                             "Thu", "Fri", "Sat", "Sun")),
-                                                     br(),
-                                                     h6("Summary Statistics:", style = "text-align:center"),
-                                                     fluidRow(column(7, div("Number of Trips:", style = 'text-align:right')),
-                                                              column(5, div(textOutput("summarystats3_1"), style = 'text-align:left'), style = "padding:0px;")),
-                                                     fluidRow(column(7, div("Number of Users:", style = 'text-align:right')),
-                                                              column(5, div(textOutput("summarystats3_2"), style = 'text-align:left'), style = "padding:0px;")),
-                                                     fluidRow(column(7, div("Median Trip Duration:", style = 'text-align:right')),
-                                                              column(5, div(textOutput("summarystats3_3"), style = 'text-align:left'), style = "padding:0px;")),
-                                                     fluidRow(column(7, div("Median Trip Distance:", style = 'text-align:right')),
-                                                              column(5, div(textOutput("summarystats3_4"), style = 'text-align:left'), style = "padding:0px;")),
-                                                     br(),
-                                                     h6("Bike Access Method:", style = "text-align:center"),
-                                                     fluidRow(column(7, div("Keypad:", style = 'text-align:right')),
-                                                              column(5, div(textOutput("summarystats3_5"), style = 'text-align:left'), style = "padding:0px;")),
-                                                     fluidRow(column(7, div("Keypad Phone Number", style = 'text-align:right')),
-                                                              column(5, div(textOutput("summarystats3_6"), style = 'text-align:left'), style = "padding:0px;")),
-                                                     fluidRow(column(7, div("Keypad RFID Card:", style = 'text-align:right')),
-                                                              column(5, div(textOutput("summarystats3_7"), style = 'text-align:left'), style = "padding:0px;")),
-                                                     fluidRow(column(7, div("Web:", style = 'text-align:right')),
-                                                              column(5, div(textOutput("summarystats3_8"), style = 'text-align:left'), style = "padding:0px;")),
-                                                     fluidRow(column(7, div("Admin:", style = 'text-align:right')),
-                                                              column(5, div(textOutput("summarystats3_9"), style = 'text-align:left'), style = "padding:0px;")),
-                                                     width = 3
-                                                   ),
-                                                   mainPanel(
-                                                             fluidRow(column(width = 12, plotOutput("plot3", height = "15vw", width = "100%"), )),
-                                                             fluidRow(column(width = 12, withSpinner(plotOutput("plot1", height = "15vw", width = "100%"), type = 2), )),
-                                                             fluidRow(column(width = 12, plotOutput("plot2", height = "15vw", width = "100%"), )),
-                                                             width = 9
-                                                   )
-                                     )
-                          ),
-                          tabPanel("One Bike's Journey",
-                                   sidebarLayout(fluid = TRUE,
-                                                 sidebarPanel(align = "center",
-                                                   textOutput("descript1"),
-                                                   br(),
-                                                   textOutput("descript2"),
-                                                   width = 3
-                                                 ),
-                                                 mainPanel(tags$style(type = "text/css", "#map4 {height: calc(100vh - 80px) !important;}"),
-                                                           withSpinner(leafletOutput(outputId = "map4"), type = 2),
-                                                           width = 9
-                                                 )
-                                   )
-                          )
-                          
-
+ui <- fluidPage(
+  navbarPage(
+    title = "PeaceHealth Rides Visualizations",
+    theme = bs_theme(bg = "#E9F4FF", fg = "#000000", primary = "#27598e",
+                     secondary = "#99b8d4", base_font = font_google("Signika"),
+                     `enable-gradients` = FALSE, `enable-shadows` = FALSE, 
+                     bootswatch = "slate"),
+    tabPanel(
+      "Out-of-Station Bikes",
+      sidebarLayout(
+        fluid = TRUE,
+        sidebarPanel(
+          tags$head(
+            tags$style( # I would probably put all of teh below
+              type = "text/css",
+                     "label.control-label, 
+                     .selectize-control.single {display: table-cell; text-align: left; vertical-align: middle;} 
+                     label.control-label {padding-right: 10px; width: 50px; text-align: right;}
+                     .form-group {display: table-row;}
+                     .selectize-control.single div.item {padding-right: 15px; width: 160px;}"
+            )
+          ),
+          div(
+            style = "text-align:center",
+            "This map displays the distribution of out-of-station PeaceHealth Rides bikes.
+            Each circle indicates the number of bikes in that area. Hover over the circle to see which area it encompasses,
+            or click to zoom in."
+          ),
+          div(
+            style = "text-align:center",
+            "Single instances are represented by a single black dot.
+            PeaceHealth Rides Stations are indicated with blue markers."
+          ),
+          br(),
+          div(
+            style = "text-align:center",
+            "Use the dropdown boxes below to filter for specific years, months, or days of the week."
+          ),
+          br(),
+          selectInput("year", label = "Year:",
+                      choices = c("All", "2018", "2019", "2020", "2021"),
+                      width = "500px"),
+          selectInput("month",label = "Month:",
+                      choices = c("All", "Jan", "Feb", "Mar", "Apr",
+                                  "May", "Jun", "Jul", "Aug", "Sep",
+                                  "Oct", "Nov", "Dec")),
+          selectInput("day",label = "Weekday:",
+                      choices = c("All", "Mon", "Tue", "Wed",
+                                  "Thu", "Fri", "Sat", "Sun")),
+          br(),
+          h6(style = "text-align:center", "Number of Out-of-Station Bikes:"),
+          textOutput("summarystats1"),
+          tags$style(type="text/css", "#summarystats1 {text-align:center;}"),
+          br(),
+          width = 3
+        ),
+        mainPanel(
+          tags$style(
+            type = "text/css", 
+            "#map {height: calc(100vh - 80px) !important;}"
+          ),
+          withSpinner(
+            leafletOutput(outputId = "map"), 
+            type = 2
+          ), 
+          width = 9
+        )
+      ),
+      tabPanel(
+        "System Repair & Destruction",
+        sidebarLayout(
+          fluid = TRUE,
+          sidebarPanel(
+            div(
+              style = "text-align:center;",
+              "Selecting a station and direction below displays a heatmap of the end point of destructive trips originating from this station (\"Leave Station\"), or the starting points of repair trips ending at this station (\"Return to Station\")."
+            ),
+            div(
+              style = "text-align:center; font-size:9px; color:#d2dce6", "---"
+            ),
+            div(
+              style = "text-align:center; font-size:13px;",
+              "Destructive trips are those where bikes are taken from a station but left out-of-station, and repair trips are those in which an out-of-station bike is returned to a station."
+            ),
+            br(),
+            selectInput(
+              "station", 
+              label = "Station:",
+              choices = str_sort(stationdescriptions$start_hub)
+            ),
+            br(),
+            prettyRadioButtons(
+              "triptype",
+              label = "Direction:",
+              choices = list("Leave Station" = 2, "Return to Station" = 1), 
+              selected = 2,
+              status = "primary",
+              shape = "round",
+              fill = TRUE,
+              animation = "jelly",
+              plain = FALSE,
+              thick = FALSE,
+              bigger = FALSE,
+              inline = TRUE
+            ),
+            br(),
+            selectInput(
+              "year2", 
+              label = "Year:",
+              choices = c("All", "2018", "2019", "2020", "2021"),
+              selected = "All"
+            ),
+            selectInput(
+              "month2",
+              label = "Month:",
+              choices = c("All", "Jan", "Feb", "Mar", "Apr",
+                          "May", "Jun", "Jul", "Aug", "Sep",
+                          "Oct", "Nov", "Dec"),
+              selected = "All"
+            ),
+            selectInput(
+              "day2",
+              label = "Weekday:",
+              choices = c("All", "Mon", "Tue", "Wed",
+                          "Thu", "Fri", "Sat", "Sun"),
+              selected = "All"
+            ),
+            h6("Summary Statistics:", style = "text-align:center"),
+            fluidRow(
+              column(
+                7,
+                div("Number of Trips:", style = 'text-align:right')
+              ),
+              column(
+                5,
+                div(textOutput("summarystats2_1"), style = 'text-align:left'),
+                style = "padding:0px;"
+              )
+            ),
+            fluidRow(
+              column(
+                7,
+                div("Average Trip Duration:", style = 'text-align:right')
+              ), 
+              column(
+                5,
+                div(textOutput("summarystats2_2"), style = 'text-align:left'),
+                style = "padding:0px;"
+              )
+            ),
+            fluidRow(
+              column(
+                7,
+                div("Average Trip Distance:", style = 'text-align:right')
+              ),
+              column(
+                5,
+                div(textOutput("summarystats2_3"), style = 'text-align:left'),
+                style = "padding:0px;"
+              )
+            ),
+            div(style = "text-align:center", " "),
+            width = 3
+          ),
+          mainPanel(
+            tags$style(
+              type = "text/css", 
+              "#map2 {height: calc(100vh - 80px) !important;}"
+            ),
+            withSpinner(
+              leafletOutput(outputId = "map2"), 
+              type = 2
+            ),
+            width = 9
+          )
+        )
+      ),
+      tabPanel(
+        "Bike Usage Statistics",
+        sidebarLayout(
+          fluid = TRUE,
+          sidebarPanel(
+            div(
+              style = "text-align:center",
+              "These plots display the average ride start time, duration, and distance for the time period selected below."
+            ),
+            br(),
+            selectInput(
+              "year3", 
+              label = "Year:",
+              choices = c("All", "2018", "2019", "2020", "2021")
+            ),
+            selectInput(
+              "month3",
+              label = "Month:",
+              choices = c("All", "Jan", "Feb", "Mar", "Apr",
+                          "May", "Jun", "Jul", "Aug", "Sep",
+                          "Oct", "Nov", "Dec")
+            ),
+            selectInput("day3",label = "Weekday:",
+                        choices = c("All", "Mon", "Tue", "Wed",
+                                    "Thu", "Fri", "Sat", "Sun")
+            ),
+            br(),
+            h6("Summary Statistics:", style = "text-align:center"),
+            fluidRow(
+              column(
+                7, 
+                div("Number of Trips:", style = 'text-align:right')
+              ),
+              column(
+                5, 
+                div(textOutput("summarystats3_1"), style = 'text-align:left'), 
+                style = "padding:0px;"
+              )
+            ),
+            fluidRow(
+              column(
+                7, 
+                div("Number of Users:", style = 'text-align:right')
+              ),
+              column(
+                5, 
+                div(textOutput("summarystats3_2"), style = 'text-align:left'), 
+                style = "padding:0px;"
+              )
+            ),
+            fluidRow(
+              column(
+                7, 
+                div("Median Trip Duration:", style = 'text-align:right')
+              ),
+              column(
+                5, 
+                div(textOutput("summarystats3_3"), style = 'text-align:left'), 
+                style = "padding:0px;"
+              )
+            ),
+            fluidRow(
+              column(
+                7, 
+                div("Median Trip Distance:", style = 'text-align:right')
+              ),
+              column(
+                5, 
+                div(textOutput("summarystats3_4"), style = 'text-align:left'), 
+                style = "padding:0px;"
+              )
+            ),
+            br(),
+            h6("Bike Access Method:", style = "text-align:center"),
+            fluidRow(
+              column(
+                7, 
+                div("Keypad:", style = 'text-align:right')
+              ),
+              column(
+                5, 
+                div(textOutput("summarystats3_5"), style = 'text-align:left'), 
+                style = "padding:0px;"
+              )
+            ),
+            fluidRow(
+              column(
+                7, 
+                div("Keypad Phone Number", style = 'text-align:right')
+              ),
+              column(
+                5, 
+                div(textOutput("summarystats3_6"), style = 'text-align:left'), 
+                style = "padding:0px;"
+              )
+            ),
+            fluidRow(
+              column(
+                7, 
+                div("Keypad RFID Card:", style = 'text-align:right')
+              ),
+              column(
+                5, 
+                div(textOutput("summarystats3_7"), style = 'text-align:left'), 
+                style = "padding:0px;"
+              )
+            ),
+            fluidRow(
+              column(
+                7, 
+                div("Web:", style = 'text-align:right')
+              ),
+              column(
+                5, 
+                div(textOutput("summarystats3_8"), style = 'text-align:left'), 
+                style = "padding:0px;"
+              )
+            ),
+            fluidRow(
+              column(
+                7, 
+                div("Admin:", style = 'text-align:right')
+              ),
+              column(
+                5, 
+                div(textOutput("summarystats3_9"), style = 'text-align:left'), 
+                style = "padding:0px;"
+              )
+            ),
+            width = 3
+          ),
+          mainPanel(
+            fluidRow(
+              column(
+                width = 12, 
+                plotOutput("plot3", height = "15vw", width = "100%"), # Is this comma needed?
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12, 
+                withSpinner(plotOutput("plot1", height = "15vw", width = "100%"), type = 2), # not sure abou this comma either
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12, 
+                plotOutput("plot2", height = "15vw", width = "100%"), # same question here
+              )
+            ),
+            width = 9
+          )
+        )
+      ),
+      tabPanel(
+        "One Bike's Journey",
+        sidebarLayout(
+          fluid = TRUE,
+          sidebarPanel(
+            align = "center",
+            textOutput("descript1"),
+            br(),
+            textOutput("descript2"),
+            width = 3
+          ),
+          mainPanel(
+            tags$style(
+              type = "text/css", 
+              "#map4 {height: calc(100vh - 80px) !important;}"
+            ),
+            withSpinner(leafletOutput(outputId = "map4"), type = 2),
+            width = 9
+          )
+        )
+      )
 ),
 hr(),
 div("Created by Kivalina E. Grove, Winter 2021 Educational Data Science Specialization Capstone Project", style = "text-align:center"),
